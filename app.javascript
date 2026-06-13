@@ -1,108 +1,130 @@
 // ==========================================
-// ⚠️ 关键配置区：请在这里填入你的 Supabase 信息
+// 1. 配置 Supabase (必须修改这里！)
 // ==========================================
-const SUPABASE_URL = 'https://oolqaprvhxkplywexuwg.supabase.co'; // 替换这里
-const SUPABASE_KEY = 'sb_publishable_dISN4q5YmuuWyapmlrI2FA_IOMZWgst; // 替换这里
+const SUPABASE_URL = 'https://oolqaprvhxkplywexuwg.supabase.co'; // <--- 填你的 URL
+const SUPABASE_KEY = 'sb_publishable_dISN4q5YmuuWyapmlrI2FA_IOMZWgst';                 // <--- 填你的 Key
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// 获取页面元素
+const statusDiv = document.getElementById('status');
+const inputSku = document.getElementById('input-sku'); // 假设你在HTML加了个输入框
+const btnSearch = document.getElementById('btn-search');
+const btnIn = document.getElementById('btn-in');
+const btnOut = document.getElementById('btn-out');
+const resultArea = document.getElementById('result-area'); // 显示结果的区域
+
+// ==========================================
+// 2. 初始化检查
+// ==========================================
+async function init() {
+    try {
+        const { data, error } = await supabase.from('products').select('count', { count: 'exact', head: true });
+        if (error) throw error;
+        statusDiv.innerText = "✅ 系统就绪 | 云端连接正常";
+        statusDiv.style.background = "#d4edda";
+        statusDiv.style.color = "#155724";
+    } catch (err) {
+        statusDiv.innerText = "❌ 连接失败: " + err.message;
+        statusDiv.style.background = "#f8d7da";
+    }
+}
+init();
+
+// ==========================================
+// 3. 核心业务功能
 // ==========================================
 
-// 初始化 Supabase 客户端
-let supabase;
-try {
-    if (window.supabase) {
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        console.log("Supabase 客户端已创建");
-    } else {
-        throw new Error("无法加载 Supabase 库，请检查网络或 index.html");
+// 查询商品
+async function searchProduct() {
+    const sku = inputSku.value.trim();
+    if (!sku) return alert("请输入 SKU 或扫描条码");
+
+    statusDiv.innerText = "正在查询...";
+
+    const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('sku', sku)
+        .single();
+
+    if (error && error.code !== 'PGRST116') {
+        // PGRST116 表示没找到数据，不算报错
+        statusDiv.innerText = "查询出错";
+        return;
     }
-} catch (e) {
-    document.getElementById('status-box').innerText = "❌ 致命错误: " + e.message;
+
+    if (data) {
+        showResult(`找到商品：<b>${data.name}</b><br>当前位置：${data.location}<br>当前库存：${data.stock}`);
+        // 保存当前操作的商品信息到全局变量，方便后续出入库
+        window.currentProduct = data;
+    } else {
+        showResult(`未找到 SKU 为 ${sku} 的商品。<br><button onclick="createNewProduct('${sku}')">新建该商品</button>`);
+        window.currentProduct = null;
+    }
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
-    const statusBox = document.getElementById('status-box');
-    const dataList = document.getElementById('data-list');
+// 新建商品（如果库里没有）
+window.createNewProduct = async function(sku) {
+    const name = prompt("请输入商品名称：");
+    if (!name) return;
+    const location = prompt("请输入存放位置（如 A-01-02）：") || "待定";
 
-    // 注册 Service Worker (PWA 必须)
-    if ('serviceWorker' in navigator) {
-        try {
-            await navigator.serviceWorker.register('./sw.js');
-            console.log('SW 注册成功');
-        } catch (err) {
-            console.error('SW 注册失败:', err);
-        }
-    }
+    const { error } = await supabase.from('products').insert([{ name, sku, stock: 0, location }]);
+    if (error) return alert("创建失败：" + error.message);
 
-    // 按钮 1：测试连接
-    document.getElementById('test-btn').addEventListener('click', async () => {
-        statusBox.innerText = "🔄 正在连接数据库...";
-        statusBox.className = "status-box loading";
+    alert("创建成功！");
+    searchProduct(); // 重新查询刷新
+}
 
-        // 1. 检查配置是否填写
-        if (SUPABASE_URL.includes('你的项目ID') || SUPABASE_KEY.includes('你的')) {
-            statusBox.innerText = "❌ 错误：请在 app.js 中填入真实的 URL 和 Key！";
-            return;
-        }
+// 入库操作
+async function stockIn() {
+    if (!window.currentProduct) return alert("请先查询商品");
+    const qty = parseInt(prompt("请输入入库数量："));
+    if (!qty) return;
 
-        try {
-            // 尝试查询 products 表
-            const { data, error } = await supabase
-                .from('products')
-                .select('*')
-                .limit(5);
+    const newStock = window.currentProduct.stock + qty;
+    const { error } = await supabase
+        .from('products')
+        .update({ stock: newStock })
+        .eq('id', window.currentProduct.id);
 
-            if (error) {
-                console.error(error);
-                if (error.message.includes('relation') || error.message.includes('does not exist')) {
-                    statusBox.innerText = "❌ 数据库里没有 'products' 表！请先运行 SQL 建表语句。";
-                } else if (error.message.includes('permission denied') || error.code === '42501') {
-                    statusBox.innerText = "❌ 权限被拒绝！请去 Supabase 关闭 RLS 或开启匿名读取策略。";
-                } else {
-                    statusBox.innerText = "❌ 连接失败: " + error.message;
-                }
-            } else {
-                statusBox.innerText = "✅ 连接成功！获取到 " + data.length + " 条数据。";
-                statusBox.className = "status-box success";
-                renderList(data);
-            }
-        } catch (err) {
-            statusBox.innerText = "❌ 发生未知错误: " + err.message;
-        }
-    });
+    if (error) return alert("入库失败：" + error.message);
 
-    // 按钮 2：模拟写入数据
-    document.getElementById('add-data-btn').addEventListener('click', async () => {
-        statusBox.innerText = "📝 正在写入数据...";
-        const newItem = {
-            name: '测试商品-' + Math.floor(Math.random() * 1000),
-            stock: 10,
-            qr_data: 'QR-' + Date.now()
-        };
+    alert(`入库成功！当前库存更新为：${newStock}`);
+    searchProduct(); // 刷新界面
+}
 
-        const { data, error } = await supabase.from('products').insert([newItem]).select();
+// 出库操作
+async function stockOut() {
+    if (!window.currentProduct) return alert("请先查询商品");
+    const qty = parseInt(prompt("请输入出库数量："));
+    if (!qty) return;
 
-        if (error) {
-            statusBox.innerText = "❌ 写入失败: " + error.message;
-        } else {
-            statusBox.innerText = "✅ 写入成功！";
-            // 刷新列表
-            const { data: allData } = await supabase.from('products').select('*').limit(10);
-            renderList(allData);
-        }
-    });
+    if (window.currentProduct.stock < qty) return alert("库存不足！");
 
-    function renderList(data) {
-        dataList.innerHTML = '';
-        if (!data || data.length === 0) {
-            dataList.innerHTML = '<p style="color:#666">暂无数据</p>';
-            return;
-        }
-        data.forEach(item => {
-            const div = document.createElement('div');
-            div.className = 'list-item';
-            div.innerHTML = `<strong>${item.name}</strong> <span>库存: ${item.stock}</span>`;
-            dataList.appendChild(div);
-        });
-    }
-});
+    const newStock = window.currentProduct.stock - qty;
+    const { error } = await supabase
+        .from('products')
+        .update({ stock: newStock })
+        .eq('id', window.currentProduct.id);
+
+    if (error) return alert("出库失败：" + error.message);
+
+    alert(`出库成功！当前库存更新为：${newStock}`);
+    searchProduct(); // 刷新界面
+}
+
+// 辅助函数：显示结果
+function showResult(html) {
+    resultArea.innerHTML = html;
+    resultArea.style.display = 'block';
+}
+
+// 绑定按钮事件 (假设你在 HTML 里有这些 ID 的按钮)
+// 如果你的 HTML 里没有输入框和按钮，请参考第三步修改 HTML
+if(btnSearch) btnSearch.onclick = searchProduct;
+if(btnIn) btnIn.onclick = stockIn;
+if(btnOut) btnOut.onclick = stockOut;
 
 

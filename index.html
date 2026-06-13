@@ -1,42 +1,35 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>智能仓储系统</title>
-
-    <!-- PWA 配置 -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#ffffff">
-    <link rel="icon" type="image/png" href="logo.png">
-    <link rel="apple-touch-icon" href="logo.png">
-
-    <!-- 引入 Supabase JS (CDN) -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-    <link rel="stylesheet" href="style.css">
-</head>
 <body>
     <div class="container">
-        <header>
-            <img src="logo.png" alt="Logo" class="logo">
-            <h1>仓储管理平台</h1>
-        </header>
+        <img src="logo.png" alt="Logo" class="logo">
+        <h1>仓储管理平台</h1>
 
-        <div id="status-box" class="status-box">
-            正在初始化系统...
+        <!-- 状态栏 -->
+        <div id="status" class="status-bar">正在初始化系统...</div>
+
+        <!-- 操作区 -->
+        <div class="input-group">
+            <input type="text" id="input-sku" placeholder="输入或扫描 SKU 条码" style="width: 100%; padding: 15px; font-size: 18px; margin-bottom: 10px;">
+            <button id="btn-search" class="btn-primary" style="width: 100%;">查询商品</button>
         </div>
 
-        <div class="controls">
-            <button id="test-btn" class="btn primary">测试连接云端</button>
-            <button id="add-data-btn" class="btn secondary">模拟入库一条数据</button>
-        </div>
+        <!-- 结果显示区 -->
+        <div id="result-area" class="result-box" style="display:none; margin-top: 20px; padding: 15px; background: #f9f9f9; border-radius: 8px;"></div>
 
-        <div id="data-list" class="list-container">
-            <!-- 数据将显示在这里 -->
+        <!-- 库存操作区 -->
+        <div class="action-group" style="margin-top: 20px; display: flex; gap: 10px;">
+            <button id="btn-in" class="btn-secondary" style="flex: 1;">📥 入库</button>
+            <button id="btn-out" class="btn-secondary" style="flex: 1;">📤 出库</button>
         </div>
     </div>
 
+    <!-- 引入 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="app.js"></script>
+
+    <!-- 注册 Service Worker (保持原样) -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js');
+        }
+    </script>
 </body>
-</html>
