@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>智能仓储系统</title>
+
+    <!-- 1. 引入 Supabase JS 库 (必须放在最前面) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- 2. PWA 核心配置 -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#ffffff">
+    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="apple-touch-icon" href="logo.png">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- 这里放你的界面内容 -->
+    <div id="app">
+        <h1>仓储管理平台</h1>
+        <div id="status">正在连接云端...</div>
+        <button id="test-btn">测试连接 Supabase</button>
+    </div>
+
+    <!-- 3. 引入你的业务逻辑脚本 -->
+    <script src="app.js"></script>
+</body>
+</html>
+
+
